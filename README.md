@@ -1,91 +1,171 @@
-# EVACUATELAB — Dynamic Emergency Evacuation Optimizer
+# EvacuateLab — Dynamic Emergency Evacuation Optimizer
 
-DSA + Discrete Mathematics course project that models a building as a weighted, capacitated graph, compares routing policies, simulates evacuation waves, and replans when corridors become unavailable.
+EvacuateLab is an interactive, graph-based emergency evacuation simulator that applies **Discrete Mathematics, Graph Theory, and Combinatorial Optimization** to a building evacuation problem.
 
-> **Safety disclaimer:** This is an academic simulation only. It is not certified life-safety software and must not be used to direct a real evacuation. Real buildings require fire-code compliance, qualified safety engineering, accessibility planning, validated crowd models, and on-site emergency procedures.
+The project represents a building as a weighted graph, compares evacuation routing strategies, simulates occupant movement in discrete time steps, and recalculates routes when corridors become unavailable. It includes an interactive web interface, an algorithm benchmarking environment, scenario management, and a Python-based analytical pipeline.
 
-## Run the interactive UI
+> **Safety Disclaimer:** EvacuateLab is an academic simulation, not certified life-safety software. It must not be used to direct real evacuations. Real-world applications require validated models, qualified safety engineering, applicable fire-code compliance, accessibility planning, and established emergency procedures.
 
-**Option A — easiest:** open `index.html` directly in a modern browser.
+## Features
 
-**Option B — local web server:**
+- **Interactive Command Center:** Explore and edit a building network, inspect rooms and exits, configure corridor properties, and manage blocked connections.
+- **Evacuation Simulation:** Visualize occupant groups, track model time and evacuation progress, pause or resume simulations, and observe replanning after corridor failures.
+- **Routing Strategies:** Compare fastest-route, balanced-cost, and capacity-prioritized routing policies.
+- **Graph Analysis:** Examine room reachability, estimate network throughput using a simplified maximum-flow model, construct shared-route conflict graphs, and assign planning waves using greedy graph coloring.
+- **Algorithm Lab:** Benchmark routing strategies on the same network, compare measured planner execution times and estimated simulation durations, and export results as CSV.
+- **Scenario Library:** Explore sample and randomized networks, save scenarios for the current browser session, and import or export building configurations in JSON format.
+- **Event Log:** Review simulation events, corridor failures, route recalculations, and completion status.
+- **Python Algorithm Modules:** Explore graph algorithms, maximum flow, bipartite matching, graph coloring, combinatorial calculations, simulation, and complexity experiments.
+- **Regression Tests:** Run the Python test suite to check core algorithm behaviour.
+
+## Technology Stack
+
+- **Frontend:** HTML, CSS, and JavaScript
+- **Local Server:** Python standard library
+- **Algorithms:** Graph traversal, Dijkstra's shortest-path algorithm, Edmonds–Karp maximum flow, bipartite matching, and greedy graph coloring
+- **Data Formats:** JSON for scenarios and CSV for benchmark results
+- **Optional Visualization and Analysis:** Matplotlib, Colorama, and NetworkX
+
+## Getting Started
+
+### Run the Interactive Web Application
+
+**Option 1: Open Directly**
+
+Open `index.html` in a modern web browser.
+
+**Option 2: Start a Local Server**
+
+Run the following command from the project directory:
 
 ```bash
 python serve.py
 ```
 
-Then open `http://127.0.0.1:8000`. The server uses Python's standard library; no package installation is required. The UI is client-side and does not upload your scenario. Google Fonts are an optional external visual enhancement; system fallbacks are provided.
+Open the application at:
 
-## What is included
+http://127.0.0.1:8000
 
-- **Command center:** responsive dark dashboard, interactive graph editor, draggable rooms/exits, corridor creation, node/corridor inspector, capacities, walking time and blockages.
-- **Animated simulation:** moving groups, occupant counts, elapsed model ticks, progress, pause/resume, speed control and rerouting after a corridor is blocked.
-- **Routing policies:** fastest (Dijkstra by walking time), balanced (walking time with a capacity penalty), and capacity-first (walking time penalized for low-capacity edges). These are heuristics, not globally optimal evacuation schedules.
-- **Network analysis:** room reachability, a simplified max-flow throughput estimate, shared-route conflict graph, greedy graph coloring into sequential waves, and heuristic bottleneck indicator.
-- **Algorithm lab:** compares the three routing policies against the same graph, displays measured planner runtime and estimated model duration, and exports benchmark CSV.
-- **Scenario library:** sample campus, high-density test, randomized building, save/load scenarios for the current session, JSON scenario export and JSON drag-and-drop import.
-- **Event log:** simulation start, corridor failures, rerouting, and completion events.
-- **Python algorithm modules:** independently runnable Dijkstra, Edmonds–Karp max-flow, bipartite matching, greedy graph coloring, combinatorics, simulation, complexity experiment and optional PNG reporting from the original project.
-- **Regression tests:** `python -m unittest -v`.
+The local server uses Python's standard library, so no server dependencies need to be installed. The browser interface processes scenarios locally rather than uploading them to a remote application server. Google Fonts may be used as an optional external visual enhancement, with system-font fallbacks available.
 
-## Python console analysis (original analytical pipeline)
+### Run the Python Analytical Application
 
 ```bash
 python main.py
 ```
 
-The console application lets you choose the reference campus, define a building interactively, or generate a random building. Optional PNG export uses `matplotlib`; console colour support uses `colorama`.
+The console application supports the available building-definition and scenario-generation workflows.
 
-Optional packages:
+**Optional dependencies** for additional analytical or visualization features:
 
 ```bash
 pip install matplotlib colorama networkx
 ```
 
-## UI controls
+Install these packages only if you use the corresponding optional features.
 
-- **Select:** click an element to inspect it; drag a node to reposition it.
-- **Room / Exit:** choose the tool, then click an empty part of the map.
-- **Corridor:** click two nodes in sequence.
-- **Toggle blockage:** click a corridor to block/reopen it. During a running simulation, the route plan is recomputed.
-- **Inspector:** update room population, exit throughput, corridor walk time/capacity, or blockage.
-- **Run / Pause:** start or pause a model. Use automatic incident injection to demonstrate failure handling.
-- **Algorithm lab:** run the benchmark and download CSV.
-- **Export scenario:** download the graph as JSON. To import, drag a compatible JSON file onto the map area.
+## User Interface Guide
 
-## How the model works
+| Control | Function |
+|---|---|
+| **Select** | Select and inspect a node or connection; reposition nodes when supported. |
+| **Room / Exit** | Add a room or exit at a valid location on the map. |
+| **Corridor** | Connect two selected nodes. |
+| **Block / Reopen** | Change corridor availability and recalculate routes when supported by the active simulation. |
+| **Inspector** | Configure room populations, exit throughput, corridor costs, capacities, and blockage status. |
+| **Run / Pause** | Start or pause the evacuation simulation. |
+| **Algorithm Lab** | Compare routing strategies and export benchmark results. |
+| **Scenario Export / Import** | Save a scenario to JSON or load a compatible JSON configuration. |
 
-1. The building is a graph `G=(V,E)`. Nodes represent rooms/exits; corridors carry a walking-time weight, a per-tick capacity, and a blocked flag.
-2. Dijkstra selects a route from each occupied room to the nearest reachable exit under the selected edge-cost policy.
-3. A conflict graph links rooms whose planned routes share a corridor. A greedy Welsh–Powell-style coloring assigns conflict-free *planning waves*.
-4. The simplified simulation releases people in waves according to the minimum corridor capacity on each route. Moving groups are animated along the route. A route failure triggers replanning for the next tick.
-5. The algorithm lab measures route-planner wall-clock time using `performance.now()` and estimates model duration from route length, capacity and wave ordering. Runtime is machine-dependent. Estimated duration is not a proof of optimality.
-6. The reachability check and max-flow estimate are separate diagnostics. The simple max-flow network does not model time-expanded crowd movement; its result should not be interpreted as a certified real-world evacuation throughput.
+The exact controls depend on the application version and the active scenario.
 
-## Known modelling limitations (be transparent in your report)
+## Mathematical Model
 
-- This is a deterministic teaching model. It does not simulate smoke/fire propagation, individual walking speeds, mobility needs, panic, counterflow, visibility, dynamic queue formation, or validated corridor-density relationships.
-- The routing strategies are heuristics. The benchmark is an experiment on the current input, not evidence that one method is always superior.
-- Greedy coloring is a heuristic; it creates non-conflicting planning waves for the modeled shared-corridor constraint but does not by itself prove collision-free physical movement.
-- The model's time and capacity units are illustrative. Do not call them calibrated predictions.
-- The JavaScript UI and Python CLI are two educational implementations of related algorithms, not a distributed real-time control system.
+### 1. Graph Representation
 
-## Four-person work split
+The building is represented as a graph:
 
-1. **Graph algorithms:** graph representation, BFS/DFS/reachability, Dijkstra, blocked-edge handling and tests.
-2. **Optimization & mathematics:** conflict graph, greedy coloring, flow/matching, lower-bound discussion and model assumptions.
-3. **UI & integration:** responsive dashboard, graph editor, inspector, animations, import/export and interaction testing.
-4. **Simulation & experiments:** scenario generation, dynamic incident cases, repeatable benchmark workloads, CSV analysis and report charts.
+\[
+G=(V,E)
+\]
 
-Everyone should review the overall model and understand its limitations before the viva.
+where:
 
-## Test the Python modules
+- \(V\) is the set of vertices representing rooms, exits, or other modeled locations.
+- \(E\) is the set of edges representing permitted connections, such as corridors.
+- Each edge can carry a travel-cost weight, capacity, and availability status.
+
+A valid evacuation route must consist of connected, permitted edges leading to an accessible exit.
+
+### 2. Shortest-Path Optimization
+
+Dijkstra's algorithm finds a minimum-cost route when edge costs are non-negative.
+
+For a route \(P\), its total cost is:
+
+\[
+C(P)=\sum_{e\in P}w(e)
+\]
+
+where \(w(e)\) represents the modeled cost of traversing edge \(e\).
+
+The fastest-route policy prioritizes modeled walking time. The balanced-cost and capacity-prioritized policies adjust route costs using additional penalties. These policies are heuristics and do not guarantee a globally optimal evacuation schedule.
+
+### 3. Reachability Analysis
+
+Graph traversal identifies locations that have a valid path to an available exit. When connections become blocked, reachability must be recalculated to identify locations that are no longer connected to any exit.
+
+### 4. Network Flow
+
+The maximum-flow model estimates the throughput of a capacitated network under its defined constraints. The implementation uses a simplified network representation and does not, by itself, model the full time-dependent movement of a crowd.
+
+### 5. Conflict Graph and Graph Coloring
+
+A conflict graph represents relationships between planned routes that share modeled constrained connections. Greedy graph coloring assigns planning waves so that conflicting routes receive different colors under the encoded conflict rules.
+
+Graph coloring is a heuristic scheduling aid. It does not prove that physical movement will be collision-free or that the resulting schedule minimizes total evacuation time.
+
+### 6. Discrete Simulation and Benchmarking
+
+The simulator advances through discrete model time steps, updating occupant progress and responding to connection failures according to its implemented rules.
+
+The Algorithm Lab measures planner execution time using the browser's `performance.now()` API. Estimated simulation duration is calculated from the model's assumptions and route-planning logic. Execution time is machine-dependent, and estimated evacuation duration is not a proof of optimality.
+
+## Testing
+
+Run the Python regression tests:
 
 ```bash
 python -m unittest -v
-python -m py_compile *.py
 ```
 
-## Suggested report title
+Compile-check the main Python module:
 
-**EvacuateLab: An Interactive Graph-Based Emergency Evacuation Simulation and Algorithm Comparison Platform**
+```bash
+python -m py_compile main.py
+```
+
+To compile-check all Python files recursively:
+
+```bash
+python -c "import pathlib, py_compile; files=list(pathlib.Path('.').rglob('*.py')); [py_compile.compile(str(p), doraise=True) for p in files]; print(f'Compiled {len(files)} Python files')"
+```
+
+These checks do not replace end-to-end browser testing or validation against real building evacuation data.
+
+## Known Limitations
+
+- The simulator is a deterministic educational model, not a validated crowd or fire-safety model.
+- It does not fully model smoke or fire propagation, individual movement variability, panic, counterflow, visibility, accessibility requirements, or empirically calibrated crowd-density relationships.
+- Routing policies are heuristics. Results depend on the current graph, weights, capacities, scenario configuration, and simulation assumptions.
+- Greedy graph coloring does not establish collision-free physical movement or globally optimal evacuation waves.
+- The maximum-flow diagnostic is not a time-expanded crowd-flow simulation and must not be interpreted as certified real-world evacuation throughput.
+- Travel-time and capacity values are model inputs unless explicitly calibrated against reliable data.
+- The JavaScript interface and Python analytical application are educational implementations of related concepts; they do not form a distributed real-time emergency-control system.
+- A schematic graph is not equivalent to a measured architectural floor plan. Real deployment would require verified building geometry, validated assumptions, and qualified safety review.
+
+## Project Scope
+
+EvacuateLab demonstrates how Discrete Mathematics and algorithmic techniques can be applied to a practical emergency-planning problem. Its primary focus is mathematical modelling, graph algorithms, optimization heuristics, simulation, and comparative analysis.
+
+It is intended for academic exploration and demonstration, not operational emergency management.
