@@ -1,6 +1,6 @@
 # EVACUATELAB — Dynamic Emergency Evacuation Optimizer
 
-A four-person DSA + Discrete Mathematics course project that models a building as a weighted, capacitated graph, compares routing policies, simulates evacuation waves, and replans when corridors become unavailable.
+DSA + Discrete Mathematics course project that models a building as a weighted, capacitated graph, compares routing policies, simulates evacuation waves, and replans when corridors become unavailable.
 
 > **Safety disclaimer:** This is an academic simulation only. It is not certified life-safety software and must not be used to direct a real evacuation. Real buildings require fire-code compliance, qualified safety engineering, accessibility planning, validated crowd models, and on-site emergency procedures.
 
