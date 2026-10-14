@@ -1,0 +1,19 @@
+EVACUATELAB — START HERE
+
+1) Open index.html in a modern browser, OR run:
+       python serve.py
+   Then open http://127.0.0.1:8000
+
+2) Click Run simulation to see the animated evacuation.
+3) Enable “Inject a route failure” to demonstrate dynamic replanning.
+4) Use Room / Exit / Corridor tools to edit the graph.
+5) Open Algorithm lab and click Run benchmark.
+6) Use Import JSON / Export scenario to share a scenario.
+7) For the original Python console analysis run:
+       python main.py
+8) Run regression tests:
+       python -m unittest -v
+
+No package installation is needed for the browser UI or serve.py.
+Read README.md for algorithm explanations, limitations, and team responsibilities.
+ACADEMIC SIMULATOR ONLY — NOT FOR REAL EMERGENCY GUIDANCE.
