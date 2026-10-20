@@ -22,6 +22,7 @@ Pipeline used here (each step is a different piece of discrete math):
 """
 
 import math
+from collections import deque
 from algorithms import dijkstra, reconstruct_path, greedy_coloring
 
 
@@ -29,16 +30,27 @@ def plan_routes(graph, rooms, allowed_exits):
     """For every room: best (fastest) route to one of its allowed, reachable exits."""
     routes = {}
     stranded = []
+    distances_by_room = {}
     for room in rooms:
-        dist, prev = dijkstra(graph, room)
-        candidates = [(dist[e], e) for e in allowed_exits[room] if dist.get(e, math.inf) < math.inf]
+        # Cache the single-source search so repeated planning requests for the
+        # same room do not repeat an O(E log V) Dijkstra run.
+        if room not in distances_by_room:
+            distances_by_room[room] = dijkstra(graph, room)
+        dist, prev = distances_by_room[room]
+        candidates = [(dist[e], e) for e in allowed_exits.get(room, [])
+                      if dist.get(e, math.inf) < math.inf]
         if not candidates:
             stranded.append(room)
             continue
         eta, best_exit = min(candidates)
         path = reconstruct_path(prev, room, best_exit)
         edge_set = frozenset(frozenset((path[i], path[i + 1])) for i in range(len(path) - 1))
-        bottleneck = min(graph.adj[path[i]][path[i + 1]]["capacity"] for i in range(len(path) - 1))
+        # A room already at an exit has no corridor bottleneck.
+        bottleneck = min(
+            (graph.adj[path[i]][path[i + 1]]["capacity"]
+             for i in range(len(path) - 1)),
+            default=math.inf,
+        )
         routes[room] = {"exit": best_exit, "path": path, "eta": eta,
                          "edges": edge_set, "bottleneck": bottleneck}
     return routes, stranded
@@ -48,12 +60,18 @@ def build_conflict_graph(routes):
     """Two rooms conflict iff their planned routes share at least one corridor."""
     rooms = list(routes)
     conflict = {r: set() for r in rooms}
-    for i in range(len(rooms)):
-        for j in range(i + 1, len(rooms)):
-            r1, r2 = rooms[i], rooms[j]
-            if routes[r1]["edges"] & routes[r2]["edges"]:
-                conflict[r1].add(r2)
-                conflict[r2].add(r1)
+    # Index rooms by corridor first. This avoids comparing every pair of
+    # rooms when most planned routes are disjoint (O(R + conflicts) rather
+    # than O(R^2) in the common sparse case).
+    rooms_by_edge = {}
+    for room, route in routes.items():
+        for edge in route["edges"]:
+            rooms_by_edge.setdefault(edge, []).append(room)
+    for sharing_rooms in rooms_by_edge.values():
+        for i, room in enumerate(sharing_rooms):
+            conflict[room].update(sharing_rooms[i + 1:])
+            for other in sharing_rooms[i + 1:]:
+                conflict[other].add(room)
     return conflict
 
 
@@ -78,18 +96,20 @@ def run_simulation(graph, population, allowed_exits, events, log=None):
     remaining = dict(population)
     routes, stranded = plan_routes(graph, list(population), allowed_exits)
     waves, conflict, n_waves = waves_from_coloring(routes)
-    events = sorted(events)
+    events = deque(sorted(events))
     t = 0
     completion_tick = {}
     history = []  # (tick, wave, {room: remaining})
+    state_history = []
+    stalled = set(stranded)
 
     for wave_id in sorted(waves):
         members = [r for r in waves[wave_id] if remaining[r] > 0]
-        while any(remaining[r] > 0 for r in members):
+        while any(remaining[r] > 0 and r not in stalled for r in members):
             t += 1
             # --- apply any event scheduled for this exact tick ---
             while events and events[0][0] == t:
-                _, (action, u, v) = events.pop(0)
+                _, (action, u, v) = events.popleft()
                 if action == "block":
                     graph.block(u, v)
                     if log:
@@ -101,11 +121,18 @@ def run_simulation(graph, population, allowed_exits, events, log=None):
                             if not cands:
                                 if log:
                                     log(t, f"room {r} has NO remaining route -- stranded!")
+                                stalled.add(r)
+                                if r not in stranded:
+                                    stranded.append(r)
                                 continue
                             eta, best_exit = min(cands)
                             path = reconstruct_path(prev, r, best_exit)
                             edges = frozenset(frozenset((path[i], path[i + 1])) for i in range(len(path) - 1))
-                            bneck = min(graph.adj[path[i]][path[i + 1]]["capacity"] for i in range(len(path) - 1))
+                            bneck = min(
+                                (graph.adj[path[i]][path[i + 1]]["capacity"]
+                                 for i in range(len(path) - 1)),
+                                default=math.inf,
+                            )
                             routes[r] = {"exit": best_exit, "path": path, "eta": eta,
                                          "edges": edges, "bottleneck": bneck}
                             if log:
@@ -114,15 +141,29 @@ def run_simulation(graph, population, allowed_exits, events, log=None):
 
             # --- move people for this tick ---
             for r in members:
-                if remaining[r] > 0:
+                if remaining[r] > 0 and r not in stalled:
                     rate = routes[r]["bottleneck"]
                     depart = min(remaining[r], rate)
                     remaining[r] -= depart
                     if remaining[r] == 0:
-                        completion_tick[r] = t
+                        # Departures are counted at the corridor rate, while
+                        # completion also includes the planned walking time.
+                        completion_tick[r] = t + max(0, math.ceil(routes[r]["eta"]) - 1)
             history.append((t, wave_id, dict(remaining)))
+            state_history.append({
+                "tick": t,
+                "wave": wave_id,
+                "remaining": dict(remaining),
+                "blocked_edges": frozenset(
+                    frozenset((u, v)) for u, v, data in graph.edges()
+                    if data["blocked"]
+                ),
+            })
 
     total_time = max(completion_tick.values()) if completion_tick else 0
+    total_population = sum(population.values())
+    remaining_total = sum(remaining.values())
+    evacuated_people = total_population - remaining_total
     return {
         "routes": routes,
         "waves": waves,
@@ -131,5 +172,9 @@ def run_simulation(graph, population, allowed_exits, events, log=None):
         "completion_tick": completion_tick,
         "total_time": total_time,
         "history": history,
+        "state_history": state_history,
+        "remaining_people": dict(remaining),
+        "evacuated_people": evacuated_people,
+        "population_conserved": evacuated_people + remaining_total == total_population,
         "stranded": stranded,
     }

@@ -39,6 +39,15 @@ def pigeonhole_time_bound(total_people, exit_capacities):
     return math.ceil(total_people / total_capacity), total_capacity
 
 
+def generalized_pigeonhole_bound(total_items, number_of_bins):
+    """Return the minimum load some bin must have when items are distributed."""
+    if total_items < 0:
+        raise ValueError("total_items must be non-negative")
+    if number_of_bins <= 0:
+        raise ValueError("number_of_bins must be positive")
+    return math.ceil(total_items / number_of_bins)
+
+
 def maxflow_time_bound(total_people, max_flow_rate):
     """
     Tighter bound using the network's true max-flow rate (which already
@@ -69,3 +78,20 @@ def inclusion_exclusion_exit_access(allowed_exits, exit_names):
         "fixed_to_one": fixed_to_one,
         "union_check": (len(union), ie_total),
     }
+
+
+def inclusion_exclusion_union_count(sets):
+    """Count a finite union by inclusion-exclusion for any number of sets."""
+    values = list(sets)
+    total = 0
+    intersections = {}
+    for mask in range(1, 1 << len(values)):
+        selected = [values[i] for i in range(len(values)) if mask & (1 << i)]
+        intersection = set.intersection(*selected)
+        sign = 1 if len(selected) % 2 else -1
+        total += sign * len(intersection)
+        intersections[tuple(i for i in range(len(values)) if mask & (1 << i))] = len(intersection)
+    direct = len(set.union(*values)) if values else 0
+    if total != direct:
+        raise AssertionError("inclusion-exclusion union count mismatch")
+    return total, intersections

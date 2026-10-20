@@ -152,6 +152,43 @@ def hall_deficiency(subset, right_neighbors):
     return neighborhood
 
 
+def hall_deficiency_witness(left_nodes, right_neighbors, match_right):
+    """Return an actual Hall-deficient left subset after a maximum matching."""
+    match_left = {left: right for right, left in match_right.items()}
+    unmatched = [u for u in left_nodes if u not in match_left]
+    if not unmatched:
+        return set(), set()
+
+    left_seen = set(unmatched)
+    right_seen = set()
+    queue = deque(unmatched)
+    while queue:
+        u = queue.popleft()
+        for v in right_neighbors.get(u, []):
+            if match_left.get(u) == v or v in right_seen:
+                continue
+            right_seen.add(v)
+            mate = match_right.get(v)
+            if mate is not None and mate not in left_seen:
+                left_seen.add(mate)
+                queue.append(mate)
+
+    # Include all neighbors explicitly so the returned pair can be checked
+    # directly against |N(S)| < |S|.
+    neighborhood = hall_deficiency(left_seen, right_neighbors)
+    return left_seen, neighborhood
+
+
+def edge_disjoint_connectivity(graph, source, sink):
+    """Return the edge-disjoint path count and a minimum corridor cut."""
+    unit_graph = type(graph)()
+    for u, v, data in graph.edges():
+        if not data["blocked"]:
+            unit_graph.add_edge(u, v, weight=data["weight"], capacity=1)
+    count, _, cut_edges = edmonds_karp(unit_graph, source, sink)
+    return count, cut_edges
+
+
 # ----------------------------------------------------------------------
 # 4. GREEDY (WELSH-POWELL STYLE) GRAPH COLORING -- conflict graph -> waves
 #    Color i = "evacuation wave i". Two rooms get different colors iff
